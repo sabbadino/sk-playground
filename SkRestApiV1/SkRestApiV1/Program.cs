@@ -2,6 +2,7 @@ using Microsoft.SemanticKernel;
 using System.Reflection.Metadata.Ecma335;
 using Microsoft.Extensions.Options;
 using SkRestApiV1;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +21,27 @@ builder.Services.AddOptions<SemanticKernelSettings>()
 builder.Services.AddSingleton<IValidateOptions
     <SemanticKernelSettings>, SemanticKernelSettingsValidation>();
 
-//builder.Services.AddKernel().AddAzureOpenAIChatCompletion(;
+var semanticKernelSettingsSection = builder.Configuration.GetSection(nameof(SemanticKernelSettings));
+var semanticKernelSettings = semanticKernelSettingsSection.Get<SemanticKernelSettings>();
+if (semanticKernelSettings == null)
+{
+    throw new Exception("semanticKernelSettings == null");
+}
+if(semanticKernelSettings.Models.Count == 0)
+{
+    throw new Exception("No models found in SemanticKernelSettings configuration");
+}
+var skBuilder = builder.Services.AddKernel();
+foreach(var model in semanticKernelSettings.Models.Where(m=> m.Category ==ModelCategory.AzureOpenAi))
+{
+    var apiKeyName = builder.Configuration[model.ApiKeyName];
+    if (string.IsNullOrEmpty(apiKeyName))
+    {
+        throw new Exception($"Couldnot find value for key {apiKeyName}");
+    }
+    skBuilder.AddAzureOpenAIChatCompletion(model.DeploymentName, model.Url, apiKeyName,modelId: model.modelId);
+}   
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

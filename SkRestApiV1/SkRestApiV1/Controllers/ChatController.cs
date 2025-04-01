@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.SemanticKernel;
+using System.Text;
 
 namespace SkRestApiV1.Controllers
 {
@@ -11,25 +13,35 @@ namespace SkRestApiV1.Controllers
 
         private readonly ILogger<ChatController> _logger;
         private readonly IOptions<SemanticKernelSettings> _semanticKernelSettings;
+        private readonly Kernel _kernel;
 
-        public ChatController(ILogger<ChatController> logger, IOptions<SemanticKernelSettings> semanticKernelSettings)
+        public ChatController(ILogger<ChatController> logger, IOptions<SemanticKernelSettings> semanticKernelSettings, Kernel kernel)
         {
             _logger = logger;
             _semanticKernelSettings = semanticKernelSettings;
+            _kernel = kernel;
         }
 
-        [HttpGet(template:"chat", Name = "Chat" )]
-        public IEnumerable<WeatherForecast> Chat()
+        [HttpPost(template:"chat", Name = "Chat" )]
+        public async Task<string> Chat([FromBody] UserQuestion question)
         {
-            return new List<WeatherForecast>
-            {
-                new WeatherForecast
-                {
-                    Date = DateTime.Now,
-                    TemperatureC = 25,
-                    Summary = "Hot"
-                }
-            };  
+            var history = $"""
+                           <message role="system">Use lots of emojis when u answer any question</message>
+                           <message role="user">{question.UserPrompt}</message>
+                           """;
+            var promptExecutionSettings = new PromptExecutionSettings { ModelId = "pippo" };
+            //if (!string.IsNullOrWhiteSpace(question.ModelId)) {
+            //    promptExecutionSettings.ModelId = question.ModelId; 
+            //}
+            var response = await _kernel.InvokePromptAsync(history, new KernelArguments(promptExecutionSettings));
+
+            return response.ToString();
         }
+    }
+
+    public class UserQuestion   
+    {
+        public string UserPrompt { get; init; } = "";
+        public string ModelId { get; init; } = "";
     }
 }

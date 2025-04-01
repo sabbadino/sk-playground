@@ -16,6 +16,7 @@ public class Model
     public string Url { get; init; } = "";
   
     public string ApiKeyName { get; init; } = "";
+    public string? modelId { get; init; } = "";
 }
 
 public enum ModelCategory
