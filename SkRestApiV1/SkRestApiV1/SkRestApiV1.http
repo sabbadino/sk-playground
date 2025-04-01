@@ -1,0 +1,6 @@
+@SkRestApiV1_HostAddress = http://localhost:5249
+
+GET {{SkRestApiV1_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
