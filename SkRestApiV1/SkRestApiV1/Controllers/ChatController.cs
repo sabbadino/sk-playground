@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using System.Text;
@@ -23,16 +24,23 @@ namespace SkRestApiV1.Controllers
         }
 
         [HttpPost(template:"chat", Name = "Chat" )]
-        public async Task<string> Chat([FromBody] UserQuestion question)
+        public async Task<ActionResult<string>> Chat([FromBody] UserQuestion question)
         {
             var history = $"""
                            <message role="system">Use lots of emojis when u answer any question</message>
                            <message role="user">{question.UserPrompt}</message>
                            """;
             var promptExecutionSettings = new PromptExecutionSettings { ModelId = "pippo" };
-            //if (!string.IsNullOrWhiteSpace(question.ModelId)) {
-            //    promptExecutionSettings.ModelId = question.ModelId; 
-            //}
+            if (!string.IsNullOrWhiteSpace(question.ModelId)) {
+                if (_semanticKernelSettings.Value.Models.Any(m => m.ModelId == question.ModelId))
+                {
+                    promptExecutionSettings.ModelId = question.ModelId;
+                }
+                else
+                {
+                    return BadRequest($"ModelId {question.ModelId} not found"); 
+                }
+            }
             var response = await _kernel.InvokePromptAsync(history, new KernelArguments(promptExecutionSettings));
 
             return response.ToString();
