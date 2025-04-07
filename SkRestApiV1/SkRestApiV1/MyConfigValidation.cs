@@ -3,56 +3,81 @@ using Microsoft.Extensions.Options;
 
 namespace SkRestApiV1;
 
-public class SemanticKernelSettingsValidation : IValidateOptions<SemanticKernelSettings>
+public class SemanticKernelSettingsValidation : IValidateOptions<SemanticKernelsSettings>
 {
   
     public SemanticKernelSettingsValidation()
     {
     }
 
-    public ValidateOptionsResult Validate(string name, SemanticKernelSettings semanticKernelSettings)
+    public ValidateOptionsResult Validate(string name, SemanticKernelsSettings semanticKernelSettings)
     {
         if (semanticKernelSettings == null)
         {
             var failureReason = "SemanticKernelSettings is null";
             return ValidateOptionsResult.Fail(failureReason);
         }
-        if (semanticKernelSettings.Models.Count == 0)
+        if (semanticKernelSettings.Kernels.Count == 0)
         {
-            var failureReason = "c.Models.Count== 0";
+            var failureReason = "c.KernelSettings.Count== 0";
             return ValidateOptionsResult.Fail(failureReason);
         }
-        foreach (var model in semanticKernelSettings.Models.Select((value, index) => new { value, index }))
+        var defaultKernels = semanticKernelSettings.Kernels.Where(k => k.IsDefault).ToList();
+        if (defaultKernels.Count==0)
         {
-            if(model.value ==null)
+            var failureReason = "c.Kernels.IsDefault.Count==0";
+            return ValidateOptionsResult.Fail(failureReason);
+        }
+        if (defaultKernels.Count >1)
+        {
+            var failureReason = $"c.Kernels.IsDefault.Count> 1 {defaultKernels.Count }";
+            return ValidateOptionsResult.Fail(failureReason);
+        }
+        foreach (var kernelSettings in semanticKernelSettings.Kernels.Select((kernel, kernelIndex) => new { kernel, kernelIndex = kernelIndex }))
+        {
+            var defaultModel = kernelSettings.kernel.Models.Where(k => k.IsDefault).ToList();
+            if (defaultModel.Count == 0)
             {
-                var failureReason = $"model==null for index {model.index}";
+                var failureReason = $"kernelSettings name {kernelSettings.kernel.Name} has no default model ";
                 return ValidateOptionsResult.Fail(failureReason);
             }
-            if (model.value.Category == ModelCategory.None)
+            if (defaultModel.Count > 1)
             {
-                var failureReason = $"model.Category == ModelCategory.None for index {model.index}";
+                var failureReason = $"kernelSettings name {kernelSettings.kernel.Name} has {defaultModel.Count} default models";
                 return ValidateOptionsResult.Fail(failureReason);
             }
-            if (string.IsNullOrWhiteSpace(model.value.DeploymentName))
+            foreach (var model in kernelSettings.kernel.Models.Select((modelValue, modelIndex) => new {value = modelValue, index = modelIndex }))
             {
-                var failureReason = $"string.IsNullOrWhiteSpace(model.DeploymentName) for index {model.index}";
-                return ValidateOptionsResult.Fail(failureReason);
-            }
-            if (string.IsNullOrWhiteSpace(model.value.Url))
-            {
-                var failureReason = $"string.IsNullOrWhiteSpace(model.Url) for index {model.index}";
-                return ValidateOptionsResult.Fail(failureReason);
-            }
-            if (string.IsNullOrWhiteSpace(model.value.ApiKeyName))
-            {
-                var failureReason = $"string.IsNullOrWhiteSpace(model.ApiKeyName) for index {model.index}";
-                return ValidateOptionsResult.Fail(failureReason);
-            }
-            if (string.IsNullOrWhiteSpace(model.value.ModelId))
-            {
-                var failureReason = $"string.IsNullOrWhiteSpace(model.modelId) for index {model.index}";
-                return ValidateOptionsResult.Fail(failureReason);
+                if (model.value == null)
+                {
+                    var failureReason = $"model==null for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
+                if (model.value.Category == ModelCategory.None)
+                {
+                    var failureReason = $"model.Category == ModelCategory.None kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
+                if (string.IsNullOrWhiteSpace(model.value.DeploymentName))
+                {
+                    var failureReason = $"string.IsNullOrWhiteSpace(model.DeploymentName) kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
+                if (string.IsNullOrWhiteSpace(model.value.Url))
+                {
+                    var failureReason = $"string.IsNullOrWhiteSpace(model.Url) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
+                if (string.IsNullOrWhiteSpace(model.value.ApiKeyName))
+                {
+                    var failureReason = $"string.IsNullOrWhiteSpace(model.ApiKeyName) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
+                if (string.IsNullOrWhiteSpace(model.value.ServiceId))
+                {
+                    var failureReason = $"string.IsNullOrWhiteSpace(model.ServiceId) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    return ValidateOptionsResult.Fail(failureReason);
+                }
             }
         }
         return ValidateOptionsResult.Success;

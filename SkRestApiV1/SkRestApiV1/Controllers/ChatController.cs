@@ -2,46 +2,73 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text;
+using OpenAI.Chat;
+#pragma warning disable SKEXP0001
 
 namespace SkRestApiV1.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("chat")]
     public class ChatController : ControllerBase
     {
       
 
         private readonly ILogger<ChatController> _logger;
-        private readonly IOptions<SemanticKernelSettings> _semanticKernelSettings;
-        private readonly Kernel _kernel;
+        private readonly SemanticKernelsSettings _semanticKernelSettings;
+        private readonly IEnumerable<KernelWrapper> _kernelWrappers;
 
-        public ChatController(ILogger<ChatController> logger, IOptions<SemanticKernelSettings> semanticKernelSettings, Kernel kernel)
+        public ChatController(ILogger<ChatController> logger, IOptions<SemanticKernelsSettings> semanticKernelSettings,
+            IEnumerable<KernelWrapper> kernelWrappers)
         {
             _logger = logger;
-            _semanticKernelSettings = semanticKernelSettings;
-            _kernel = kernel;
+            _semanticKernelSettings = semanticKernelSettings.Value;
+            _kernelWrappers = kernelWrappers;
         }
 
-        [HttpPost(template:"chat", Name = "Chat" )]
-        public async Task<ActionResult<string>> Chat([FromBody] UserQuestion question)
+        [HttpPost(template:"ask", Name = "Ask")]
+        public async Task<ActionResult<string>> Ask([FromBody] UserQuestion question)
         {
-            var history = $"""
-                           <message role="system">Use lots of emojis when u answer any question</message>
-                           <message role="user">{question.UserPrompt}</message>
-                           """;
-            var promptExecutionSettings = new PromptExecutionSettings { ModelId = "pippo" };
-            if (!string.IsNullOrWhiteSpace(question.ModelId)) {
-                if (_semanticKernelSettings.Value.Models.Any(m => m.ModelId == question.ModelId))
+            if(string.IsNullOrEmpty(question.KernelName) && !string.IsNullOrEmpty(question.ServiceId))
+            {
+                return BadRequest($"ServiceId {question.ServiceId} is not valid without a KernelName"); 
+            }
+            var history = new ChatHistory();
+            history.AddSystemMessage("Use lots of emojis when u answer any question");
+            history.AddUserMessage(question.UserPrompt);
+
+            var defaultKernelName = _semanticKernelSettings.Kernels.Single(k => k.IsDefault).Name;
+            var kernelWrapper = _kernelWrappers.SingleOrDefault(k => k.Name == defaultKernelName);
+            ArgumentNullException.ThrowIfNull(kernelWrapper, $"Default kernel {defaultKernelName} not found");
+            var promptExecutionSettings = new PromptExecutionSettings ();
+            string? serviceId = null;
+            if (!string.IsNullOrWhiteSpace(question.KernelName)) {
+                kernelWrapper = _kernelWrappers.SingleOrDefault(k => k.Name == question.KernelName);
+                if (kernelWrapper!=null)
                 {
-                    promptExecutionSettings.ModelId = question.ModelId;
+                    if (!string.IsNullOrWhiteSpace(question.ServiceId))
+                    {
+                        var modelId = kernelWrapper.ServiceIds.SingleOrDefault(m => m == question.ServiceId);
+                        if (modelId!=null)
+                        {
+                            serviceId = question.ServiceId;
+                        }
+                        else
+                        {
+                            return BadRequest($"ModelId {question.ServiceId} not found");
+                        }
+                    }
                 }
                 else
                 {
-                    return BadRequest($"ModelId {question.ModelId} not found"); 
+                    return BadRequest($"KernelName {question.KernelName} not found"); 
                 }
             }
-            var response = await _kernel.InvokePromptAsync(history, new KernelArguments(promptExecutionSettings));
+            var c = kernelWrapper.Kernel.GetRequiredService<IChatCompletionService>(serviceId);
+            
+            var response = await c.GetChatMessageContentAsync(history, promptExecutionSettings, kernelWrapper.Kernel);  
+            //await get .InvokePromptAsync(history, new KernelArguments(promptExecutionSettings));
 
             return response.ToString();
         }
@@ -50,6 +77,7 @@ namespace SkRestApiV1.Controllers
     public class UserQuestion   
     {
         public string UserPrompt { get; init; } = "";
-        public string ModelId { get; init; } = "";
+        public string KernelName { get; init; } = "";
+        public string ServiceId{ get; init; } = "";
     }
 }

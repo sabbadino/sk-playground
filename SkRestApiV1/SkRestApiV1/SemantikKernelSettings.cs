@@ -1,21 +1,25 @@
 using System.ComponentModel.DataAnnotations;
 
 
-public class SemanticKernelSettings
+public class SemanticKernelsSettings
 {
-    public List<Model> Models { get; init; } = new();
-    public KernelSetup KernelSetup { get; init; } = KernelSetup.MoreModelsInSameKernelRegistration;
+    
+    public List<KernelSettings> Kernels { get; init; } = new();
 }
 
-public enum KernelSetup
+public class KernelSettings
 {
-    MoreModelsInSameKernelRegistration,
-    KeyedKernels
+    public bool IsDefault { get; init; } = false;   
+    public string Name { get; init; }
+    public List<Model> Models { get; init; } = new();
 }
+
+
+
 
 public class Model
 {
-  
+    public bool IsDefault { get; init; } = false;
     public ModelCategory? Category { get; init; }
   
     public string DeploymentName { get; init; } = "";
@@ -23,7 +27,7 @@ public class Model
     public string Url { get; init; } = "";
   
     public string ApiKeyName { get; init; } = "";
-    public string ModelId { get; init; } = "";
+    public string ServiceId { get; init; } = "";
 }
 
 public enum ModelCategory

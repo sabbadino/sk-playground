@@ -11,7 +11,7 @@ public static class SemanticKernelExtensions
         // Register a KernelPluginCollection to be populated with any IKernelPlugins that have been
         // directly registered in DI. It's transient because the Kernel will store the collection
         // directly, and we don't want two Kernel instances to hold on to the same mutable collection.
-        services.AddTransient<KernelPluginCollection>();
+        services.AddKeyedTransient<KernelPluginCollection>(kernelName);
 
         // Register the Kernel as transient. It's mutable and expected to be mutated by consumers,
         // such as via adding event handlers, adding plugins, storing state in its Data collection, etc.
