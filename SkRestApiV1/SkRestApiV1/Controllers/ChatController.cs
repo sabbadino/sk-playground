@@ -42,6 +42,7 @@ namespace SkRestApiV1.Controllers
             var kernelWrapper = _kernelWrappers.SingleOrDefault(k => k.Name == defaultKernelName);
             ArgumentNullException.ThrowIfNull(kernelWrapper, $"Default kernel {defaultKernelName} not found");
             var promptExecutionSettings = new PromptExecutionSettings ();
+            promptExecutionSettings.FunctionChoiceBehavior = FunctionChoiceBehavior.Auto();
             string? serviceId = null;
             if (!string.IsNullOrWhiteSpace(question.KernelName)) {
                 kernelWrapper = _kernelWrappers.SingleOrDefault(k => k.Name == question.KernelName);
@@ -68,7 +69,7 @@ namespace SkRestApiV1.Controllers
             var c = kernelWrapper.Kernel.GetRequiredService<IChatCompletionService>(serviceId);
             
             var response = await c.GetChatMessageContentAsync(history, promptExecutionSettings, kernelWrapper.Kernel);  
-            //await get .InvokePromptAsync(history, new KernelArguments(promptExecutionSettings));
+
 
             return response.ToString();
         }

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using SkRestApiV1.Controllers;
 using System.Collections.Immutable;
 using Microsoft.OpenApi.Models;
+using SkRestApiV1.Plugins;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,23 +39,39 @@ if(semanticKernelSettings.Kernels.Count == 0)
     throw new Exception("No models found in Kernels configuration");
 }
 
+builder.Services.RegisterByConvention<Program>();
+builder.Services.AddHttpClient();
+
+// build plugin using the global IOC container  
+builder.Services.AddKeyedSingleton(nameof(PluginsContainer), (serviceProvider, _) => 
+    KernelPluginFactory.CreateFromType<PluginsContainer>(nameof(PluginsContainer), serviceProvider));
+
+// register by convention inside in the default asp.net core ServiceCollection
+builder.Services.RegisterByConvention<Program>();
 
 foreach (var kernelSetting in semanticKernelSettings.Kernels)
 {
-    var skBuilder = Kernel.CreateBuilder();
-    foreach (var model in kernelSetting.Models.Where(m => m.Category == ModelCategory.AzureOpenAi))
-    {
-        var apiKeyName = builder.Configuration[model.ApiKeyName];
-        if (string.IsNullOrEmpty(apiKeyName))
+    builder.Services.AddTransient(globalServiceProvider => {
+        // I do not new the Kernel since i need to call AddAzureOpenAIChatCompletion and similar
+        var skBuilder = Kernel.CreateBuilder();
+        foreach (var model in kernelSetting.Models.Where(m => m.Category == ModelCategory.AzureOpenAi))
         {
-            throw new Exception($"Could not find value for key {apiKeyName}");
+            var apiKeyName = builder.Configuration[model.ApiKeyName];
+            if (string.IsNullOrEmpty(apiKeyName))
+            {
+                throw new Exception($"Could not find value for key {apiKeyName}");
+            }
+            skBuilder.AddAzureOpenAIChatCompletion(model.DeploymentName, model.Url, apiKeyName, serviceId: model.ServiceId);
         }
-        skBuilder.AddAzureOpenAIChatCompletion(model.DeploymentName, model.Url, apiKeyName, serviceId: model.ServiceId);
         skBuilder.Services.AddLogging(l => l.SetMinimumLevel(LogLevel.Debug).AddConsole());
-    }
-    builder.Services.AddTransient((_) => new KernelWrapper { Kernel = skBuilder.Build(), Name = kernelSetting.Name, ServiceIds = kernelSetting.Models.Select(m=> m.ServiceId).ToImmutableList()});
+        var kernel = skBuilder.Build();
+        kernel.Plugins.Add(globalServiceProvider.GetRequiredKeyedService<KernelPlugin>(nameof(PluginsContainer)));
+        return new KernelWrapper { Kernel = kernel, Name = kernelSetting.Name, ServiceIds = kernelSetting.Models.Select(m => m.ServiceId).ToImmutableList() };
+    });
+       
 
 }
+
 
 var app = builder.Build();
 
