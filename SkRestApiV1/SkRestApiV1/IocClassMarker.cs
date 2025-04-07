@@ -4,5 +4,5 @@
     public interface ITransientScope { }
     public interface IRequestScope { }
 
-    public interface ISingletonScopePlugins { }
+    
 }

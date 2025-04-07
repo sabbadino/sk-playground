@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 
@@ -12,6 +13,7 @@ public class KernelSettings
     public bool IsDefault { get; init; } = false;   
     public string Name { get; init; }
     public List<Model> Models { get; init; } = new();
+    public List<string> Plugins { get; init; } = new();
 }
 
 

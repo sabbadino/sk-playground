@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace SkRestApiV1.Plugins
 {
-    public class PluginsContainer : ISingletonScopePlugins
+    public class PluginsContainer 
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;

@@ -7,6 +7,7 @@ using SkRestApiV1.Controllers;
 using System.Collections.Immutable;
 using Microsoft.OpenApi.Models;
 using SkRestApiV1.Plugins;
+#pragma warning disable SKEXP0001
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,11 +42,17 @@ if(semanticKernelSettings.Kernels.Count == 0)
 
 builder.Services.RegisterByConvention<Program>();
 builder.Services.AddHttpClient();
-
-// build plugin using the global IOC container  
-builder.Services.AddKeyedSingleton(nameof(PluginsContainer), (serviceProvider, _) => 
-    KernelPluginFactory.CreateFromType<PluginsContainer>(nameof(PluginsContainer), serviceProvider));
-
+var allPlugins = semanticKernelSettings.Kernels.SelectMany(k => k.Plugins).Distinct();
+foreach (var pluginName in allPlugins)
+{
+    // build plugin using the global IOC container  
+    builder.Services.AddKeyedSingleton(pluginName, (serviceProvider, _) =>
+    {
+        var type = Type.GetType($"SkRestApiV1.Plugins.{pluginName}");
+        ArgumentNullException.ThrowIfNull(type, $"Plugin {pluginName} not found");
+        return KernelPluginFactory.CreateFromType(type, pluginName, serviceProvider);
+    });
+}
 // register by convention inside in the default asp.net core ServiceCollection
 builder.Services.RegisterByConvention<Program>();
 
@@ -65,7 +72,12 @@ foreach (var kernelSetting in semanticKernelSettings.Kernels)
         }
         skBuilder.Services.AddLogging(l => l.SetMinimumLevel(LogLevel.Debug).AddConsole());
         var kernel = skBuilder.Build();
-        kernel.Plugins.Add(globalServiceProvider.GetRequiredKeyedService<KernelPlugin>(nameof(PluginsContainer)));
+        foreach( var pluginName in kernelSetting.Plugins)
+        {
+            var plugin= globalServiceProvider.GetRequiredKeyedService<KernelPlugin>(pluginName);
+            ArgumentNullException.ThrowIfNull(plugin, $"Plugin {pluginName} could not be cast to KernelPlugin");
+            kernel.Plugins.Add(plugin);
+        }
         return new KernelWrapper { Kernel = kernel, Name = kernelSetting.Name, ServiceIds = kernelSetting.Models.Select(m => m.ServiceId).ToImmutableList() };
     });
        
