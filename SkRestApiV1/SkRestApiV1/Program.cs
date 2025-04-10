@@ -7,6 +7,7 @@ using SkRestApiV1.Controllers;
 using System.Collections.Immutable;
 using Microsoft.OpenApi.Models;
 using SkRestApiV1.Plugins;
+#pragma warning disable SKEXP0070
 #pragma warning disable SKEXP0001
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,6 +71,10 @@ foreach (var kernelSetting in semanticKernelSettings.Kernels)
             }
             skBuilder.AddAzureOpenAIChatCompletion(model.DeploymentName, model.Url, apiKeyName, serviceId: model.ServiceId);
         }
+        foreach (var model in kernelSetting.Models.Where(m => m.Category == ModelCategory.Ollama))
+        {
+            skBuilder.AddOllamaChatCompletion(model.DeploymentName, new Uri(model.Url), serviceId: model.ServiceId);
+        }
         skBuilder.Services.AddLogging(l => l.SetMinimumLevel(LogLevel.Debug).AddConsole());
         var kernel = skBuilder.Build();
         foreach( var pluginName in kernelSetting.Plugins)
@@ -78,7 +83,7 @@ foreach (var kernelSetting in semanticKernelSettings.Kernels)
             ArgumentNullException.ThrowIfNull(plugin, $"Plugin {pluginName} could not be cast to KernelPlugin");
             kernel.Plugins.Add(plugin);
         }
-        return new KernelWrapper { Kernel = kernel, Name = kernelSetting.Name, ServiceIds = kernelSetting.Models.Select(m => m.ServiceId).ToImmutableList() };
+        return new KernelWrapper { SystemMessageName = kernelSetting.SystemMessageName,  Kernel = kernel, Name = kernelSetting.Name, ServiceIds = kernelSetting.Models.Select(m => m.ServiceId).ToImmutableList() };
     });
        
 

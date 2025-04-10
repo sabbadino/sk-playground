@@ -18,13 +18,15 @@ namespace SkRestApiV1.Controllers
         private readonly ILogger<ChatController> _logger;
         private readonly SemanticKernelsSettings _semanticKernelSettings;
         private readonly IEnumerable<KernelWrapper> _kernelWrappers;
+        private readonly ITemplatesProvider _templatesProvider;
 
         public ChatController(ILogger<ChatController> logger, IOptions<SemanticKernelsSettings> semanticKernelSettings,
-            IEnumerable<KernelWrapper> kernelWrappers)
+            IEnumerable<KernelWrapper> kernelWrappers, ITemplatesProvider templatesProvider)
         {
             _logger = logger;
             _semanticKernelSettings = semanticKernelSettings.Value;
             _kernelWrappers = kernelWrappers;
+            _templatesProvider = templatesProvider;
         }
 
         [HttpPost(template:"ask", Name = "Ask")]
@@ -32,11 +34,8 @@ namespace SkRestApiV1.Controllers
         {
             if(string.IsNullOrEmpty(question.KernelName) && !string.IsNullOrEmpty(question.ServiceId))
             {
-                return BadRequest($"ServiceId {question.ServiceId} is not valid without a KernelName"); 
+                return BadRequest($"ServiceId {question.KernelName} is not valid without a KernelName"); 
             }
-            var history = new ChatHistory();
-            history.AddSystemMessage("Use lots of emojis when u answer any question");
-            history.AddUserMessage(question.UserPrompt);
 
             var defaultKernelName = _semanticKernelSettings.Kernels.Single(k => k.IsDefault).Name;
             var kernelWrapper = _kernelWrappers.SingleOrDefault(k => k.Name == defaultKernelName);
@@ -57,7 +56,7 @@ namespace SkRestApiV1.Controllers
                         }
                         else
                         {
-                            return BadRequest($"ModelId {question.ServiceId} not found");
+                            return BadRequest($"ServiceId {question.ServiceId} not found");
                         }
                     }
                 }
@@ -66,9 +65,12 @@ namespace SkRestApiV1.Controllers
                     return BadRequest($"KernelName {question.KernelName} not found"); 
                 }
             }
-            var c = kernelWrapper.Kernel.GetRequiredService<IChatCompletionService>(serviceId);
-            
-            var response = await c.GetChatMessageContentAsync(history, promptExecutionSettings, kernelWrapper.Kernel);  
+            var k = kernelWrapper.Kernel.GetRequiredService<IChatCompletionService>(serviceId);
+            var history = new ChatHistory();
+            history.AddSystemMessage(await _templatesProvider.GetSystemMessage(kernelWrapper.SystemMessageName));
+            history.AddUserMessage(question.UserPrompt);
+
+            var response = await k.GetChatMessageContentAsync(history, promptExecutionSettings, kernelWrapper.Kernel);  
 
 
             return response.ToString();

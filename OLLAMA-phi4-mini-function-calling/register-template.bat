@@ -1,0 +1,1 @@
+ollama create -f  .\phi4-mini.txt phi4-mini-tool-calling

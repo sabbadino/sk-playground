@@ -4,8 +4,9 @@ using System.Collections.ObjectModel;
 
 public class KernelWrapper
 {
-    public Kernel Kernel { get; init; }
-    public string Name { get; init; }
+    public required Kernel Kernel { get; init; }
+    public required string Name { get; init; }
 
     public ImmutableList<string> ServiceIds { get; init; } = [] ;
+    public required string SystemMessageName { get; init; }
 }

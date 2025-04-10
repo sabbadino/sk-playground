@@ -18,10 +18,10 @@ namespace SkRestApiV1.Plugins
         }   
         [KernelFunction("get_current_weather")]
         [Description("Returns the current weather for the specified location")]
-        public async Task<GetWeatherResponse> GetCurrentWeather(GetCurrentWeatherRequest getCurrentWeatherRequest)
+        public async Task<GetWeatherResponse> GetCurrentWeather([Description("The location (town or region) name. IMPORTANT : Assistant must ask the user a value for location. If not provided in the conversation, Assistant must not not make up one")] string location )
         {
             var client = _httpClientFactory.CreateClient();
-            var ret = await client.GetAsync($"http://api.weatherstack.com/current?access_key={_configuration["weatherkey"]}&query={getCurrentWeatherRequest.Location}&units=m");
+            var ret = await client.GetAsync($"http://api.weatherstack.com/current?access_key={_configuration["weatherkey"]}&query={location}&units=m");
             if (!ret.IsSuccessStatusCode)
             {
                 throw new Exception($"{ret.StatusCode} + {await ret.Content.ReadAsStringAsync()}");

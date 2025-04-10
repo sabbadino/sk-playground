@@ -73,9 +73,9 @@ public class SemanticKernelSettingsValidation : IValidateOptions<SemanticKernels
                     var failureReason = $"string.IsNullOrWhiteSpace(model.ApiKeyName) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
                     return ValidateOptionsResult.Fail(failureReason);
                 }
-                if (string.IsNullOrWhiteSpace(model.value.ServiceId))
+                if (kernelSettings.kernel.Models.Count >1 && string.IsNullOrWhiteSpace(model.value.ServiceId))
                 {
-                    var failureReason = $"string.IsNullOrWhiteSpace(model.ServiceId) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
+                    var failureReason = $"kernelSettings.kernel.Models.Count >1 && string.IsNullOrWhiteSpace(model.ServiceId) for kernelIndex {kernelSettings.kernelIndex} , modelIndex {model.index}";
                     return ValidateOptionsResult.Fail(failureReason);
                 }
             }
